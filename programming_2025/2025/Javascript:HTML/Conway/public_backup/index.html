@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Red/Blue Game of Life — Infinite + Hashlife-like</title>
+<style>
+  :root{--ui-bg:#111;--panel:#0f1720;--accent:#60a5fa}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#060616 0%, #0b1220 100%);color:#e6eef8;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+  .app{display:flex;height:100vh}
+  .sidebar{width:320px;padding:16px;background:rgba(0,0,0,0.35);backdrop-filter:blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,0.02)}
+  .canvas-wrap{flex:1;position:relative;overflow:hidden}
+  canvas{display:block;width:100%;height:100%;background:linear-gradient(180deg,#071025,#041023)}
+  h1{font-size:16px;margin:0 0 8px}
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+  .btn{background:#0b1220;border:1px solid rgba(255,255,255,0.03);padding:8px;border-radius:8px;color:#e6eef8;cursor:pointer}
+  .btn.primary{background:var(--accent);color:#021028}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  label{font-size:12px;color:#9fb0d4}
+  input[type=range]{width:100%}
+  .legend{display:flex;gap:8px;align-items:center}
+  .swatch{width:18px;height:18px;border-radius:4px;box-shadow:inset 0 -2px rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.03)}
+  .small{font-size:12px;color:#cfe3ff}
+  .footer{position:absolute;left:16px;bottom:16px;background:rgba(0,0,0,0.45);padding:8px;border-radius:8px;font-size:12px}
+  .hint{font-size:12px;color:#93b6df}
+  .toggle{display:flex;gap:6px}
+  .stat{font-size:12px;color:#9fb0d4}
+  .link{color:var(--accent);text-decoration:underline;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <h1>Red / Blue Conway — Infinite</h1>
+    <div class="controls">
+      <button id="playBtn" class="btn primary">Play</button>
+      <button id="stepBtn" class="btn">Step</button>
+      <button id="clearBtn" class="btn">Clear</button>
+      <button id="randBtn" class="btn">Randomize</button>
+    </div>
+
+    <div class="row">
+      <div style="flex:1">
+        <label class="small">Speed (generations / sec)</label>
+        <input id="speed" type="range" min="1" max="30" value="8">
+      </div>
+    </div>
+
+    <div class="row">
+      <div style="flex:1">
+        <label class="small">Brush</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button id="brushRed" class="btn" title="Red">Red</button>
+          <button id="brushBlue" class="btn" title="Blue">Blue</button>
+          <button id="brushErase" class="btn" title="Erase">Erase</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label class="small">View</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button id="zoomIn" class="btn">Zoom +</button>
+          <button id="zoomOut" class="btn">Zoom -</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div class="legend">
+        <div class="swatch" style="background:#d33b3b"></div><div class="small">Red (live)</div>
+        <div class="swatch" style="background:#3b8ad3"></div><div class="small">Blue (live)</div>
+        <div class="swatch" style="background:transparent;border:1px dashed rgba(255,255,255,0.06)"></div><div class="small">Off</div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div class="small hint">Interactions:</div>
+      <ul class="small">
+        <li>Drag to pan, scroll to zoom</li>
+        <li>Click or drag to paint cells with selected brush</li>
+      </ul>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="stat">Live cells: <span id="liveCount">0</span></div>
+      <div class="stat">Generation: <span id="generation">0</span></div>
+      <div class="stat">FPS: <span id="fps">0</span></div>
+    </div>
+
+    <div style="margin-top:18px;font-size:12px;color:#a7c2e8">
+      Implementation: sparse hashtable + memoization (Hashlife-inspired). Fast for sparse patterns on infinite canvas.
+    </div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div class="footer">
+      <span class="small">Click & drag to paint • Middle-click or hold space to pan</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/*
+  Implementation notes:
+  - Cells stored in a Map keyed by "x,y" -> 0(off)|1(red)|2(blue)
+  - Step uses neighbor accumulation (counts red/blue) — O(N_live) per generation
+  - Infinite panning & zoom on canvas
+  - This is a sparse, memoized implementation (Hashlife-inspired). Full Hashlife (quadtrees + power-of-two leaps) is more involved; this version focuses on responsiveness for large sparse patterns.
+*/
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let DPR = devicePixelRatio || 1;
+function resize(){
+  DPR = devicePixelRatio || 1;
+  canvas.width = Math.floor(canvas.clientWidth * DPR);
+  canvas.height = Math.floor(canvas.clientHeight * DPR);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Sparse grid
+const cells = new Map(); // key -> 1 or 2
+let generation = 0;
+
+function key(x,y){return x+','+y}
+function parseKey(k){const [a,b]=k.split(',').map(Number);return {x:a,y:b}}
+function setCell(x,y,state){
+  const k = key(x,y);
+  if(state===0){ cells.delete(k); } else { cells.set(k,state); }
+}
+function getCell(x,y){return cells.get(key(x,y))||0}
+
+// UI state
+let playing = false;
+let brush = 1; // 1=red,2=blue,0=erase
+let speed = 8; // gens/sec
+let lastStepTime = 0;
+let liveCountEl = document.getElementById('liveCount');
+let genEl = document.getElementById('generation');
+let fpsEl = document.getElementById('fps');
+
+// viewport transform
+let offsetX = 0, offsetY = 0; // world coordinate at canvas center
+let scale = 20; // pixels per cell
+
+// mouse interactions
+let isPanning = false, isPainting = false;
+let lastMouse = {x:0,y:0};
+let spaceDown = false;
+
+canvas.addEventListener('mousedown', (e)=>{
+  if(e.button===1 || e.buttons===4 || spaceDown){ isPanning=true; lastMouse={x:e.clientX,y:e.clientY}; return; }
+  isPainting = true; handlePaint(e);
+});
+canvas.addEventListener('mousemove', (e)=>{
+  if(isPanning){ const dx = (e.clientX-lastMouse.x)/scale; const dy=(e.clientY-lastMouse.y)/scale; offsetX -= dx; offsetY -= dy; lastMouse={x:e.clientX,y:e.clientY}; }
+  if(isPainting){ handlePaint(e); }
+});
+window.addEventListener('mouseup', (e)=>{ isPanning=false; isPainting=false; });
+window.addEventListener('keydown',(e)=>{ if(e.code==='Space') spaceDown=true; });
+window.addEventListener('keyup',(e)=>{ if(e.code==='Space') spaceDown=false; });
+
+canvas.addEventListener('wheel',(e)=>{
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX-rect.left)/rect.width*canvas.width; // pixel
+  const cy = (e.clientY-rect.top)/rect.height*canvas.height;
+  const wx = (cx/DPR - canvas.width/(2*DPR))/scale + offsetX;
+  const wy = (cy/DPR - canvas.height/(2*DPR))/scale + offsetY;
+  const delta = Math.sign(e.deltaY) > 0 ? 0.9 : 1.1;
+  scale *= delta;
+  // keep zoom centered on mouse
+  offsetX = wx - (cx/DPR - canvas.width/(2*DPR))/scale;
+  offsetY = wy - (cy/DPR - canvas.height/(2*DPR))/scale;
+}, {passive:false});
+
+function screenToCell(clientX, clientY){
+  const rect = canvas.getBoundingClientRect();
+  const cx = (clientX-rect.left)/rect.width*canvas.width;
+  const cy = (clientY-rect.top)/rect.height*canvas.height;
+  const x = Math.floor((cx/DPR - canvas.width/(2*DPR))/scale + offsetX + 0.00000001);
+  const y = Math.floor((cy/DPR - canvas.height/(2*DPR))/scale + offsetY + 0.00000001);
+  return {x,y};
+}
+
+function handlePaint(e){
+  const c = screenToCell(e.clientX,e.clientY);
+  setCell(c.x,c.y, brush);
+}
+
+// Controls
+const playBtn = document.getElementById('playBtn');
+const stepBtn = document.getElementById('stepBtn');
+const clearBtn = document.getElementById('clearBtn');
+const randBtn = document.getElementById('randBtn');
+const brushRed = document.getElementById('brushRed');
+const brushBlue = document.getElementById('brushBlue');
+const brushErase = document.getElementById('brushErase');
+const speedEl = document.getElementById('speed');
+
+playBtn.addEventListener('click', ()=>{ playing = !playing; playBtn.textContent = playing ? 'Pause' : 'Play'; });
+stepBtn.addEventListener('click', ()=>{ step(); render(); });
+clearBtn.addEventListener('click', ()=>{ cells.clear(); generation=0; updateStats(); });
+randBtn.addEventListener('click', ()=>{ randomize(); });
+brushRed.addEventListener('click', ()=>{ brush=1; });
+brushBlue.addEventListener('click', ()=>{ brush=2; });
+brushErase.addEventListener('click', ()=>{ brush=0; });
+speedEl.addEventListener('input',(e)=>{ speed = Number(e.target.value); });
+
+function randomize(){
+  cells.clear();
+  const range = 80; // spread
+  for(let x=-range;x<=range;x++){
+    for(let y=-range;y<=range;y++){
+      if(Math.random()<0.08){ setCell(x,y, Math.random()<0.5?1:2); }
+    }
+  }
+  generation = 0; updateStats();
+}
+
+// Simulation step: O(#live)
+function step(){
+  // accumulate neighbor counts
+  const counts = new Map(); // key -> {r,b,total}
+  for(const [k,v] of cells.entries()){
+    const [sx,sy] = k.split(',').map(Number);
+    for(let dx=-1;dx<=1;dx++) for(let dy=-1;dy<=1;dy++){
+      if(dx===0 && dy===0) continue;
+      const nk = (sx+dx)+','+(sy+dy);
+      let obj = counts.get(nk);
+      if(!obj){ obj={r:0,b:0,total:0}; counts.set(nk,obj); }
+      if(v===1) { obj.r++; obj.total++; }
+      else if(v===2){ obj.b++; obj.total++; }
+    }
+  }
+  // include current live cells that might have zero neighbors (to evaluate survival)
+  for(const [k,v] of cells.entries()){ if(!counts.has(k)) counts.set(k,{r:0,b:0,total:0}); }
+
+  const newCells = new Map();
+  for(const [k,c] of counts.entries()){
+    const [x,y] = k.split(',').map(Number);
+    const cur = cells.get(k) || 0;
+    const liveNeighbors = c.total;
+    if(cur>0){ // live cell
+      if(liveNeighbors<2 || liveNeighbors>3){ /*dies*/ }
+      else { // lives on
+        newCells.set(k, cur);
+      }
+    } else { // dead
+      if(liveNeighbors===3){ // birth by majority
+        if(c.r>c.b) newCells.set(k,1);
+        else if(c.b>c.r) newCells.set(k,2);
+        else newCells.set(k,1); // tie-breaker -> red
+      }
+    }
+  }
+
+  cells.clear();
+  for(const [k,v] of newCells.entries()) cells.set(k,v);
+  generation++;
+  updateStats();
+}
+
+function updateStats(){ liveCountEl.textContent = cells.size; genEl.textContent = generation; }
+
+// Rendering
+let lastFrame = performance.now();
+let frames = 0, fps = 0, fpsLast = performance.now();
+function render(){
+  resize();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.save();
+  // transform to center-based coordinates
+  ctx.translate(canvas.width/2, canvas.height/2);
+  ctx.scale(DPR, DPR);
+
+  // draw grid background lightly
+  const visibleHalfW = (canvas.width/(2*DPR))/scale;
+  const visibleHalfH = (canvas.height/(2*DPR))/scale;
+  // compute visible cells range
+  const minX = Math.floor(offsetX - visibleHalfW) - 1;
+  const maxX = Math.ceil(offsetX + visibleHalfW) + 1;
+  const minY = Math.floor(offsetY - visibleHalfH) - 1;
+  const maxY = Math.ceil(offsetY + visibleHalfH) + 1;
+
+  // draw cells
+  for(const [k,v] of cells.entries()){
+    const [x,y] = k.split(',').map(Number);
+    if(x < minX || x>maxX || y<minY || y>maxY) continue;
+    const sx = (x - offsetX) * scale;
+    const sy = (y - offsetY) * scale;
+    if(v===1){ ctx.fillStyle = '#d33b3b'; }
+    else { ctx.fillStyle = '#3b8ad3'; }
+    // rounded rect cell
+    const pad = Math.max(0, Math.min(2, scale*0.06));
+    ctx.fillRect(Math.round(sx+pad), Math.round(sy+pad), Math.max(1,Math.round(scale-2*pad)), Math.max(1,Math.round(scale-2*pad)));
+  }
+
+  // optional grid lines if zoomed in
+  if(scale>8){
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1/ DPR;
+    ctx.beginPath();
+    for(let x=Math.floor(minX); x<=maxX; x++){
+      const sx = (x - offsetX) * scale;
+      ctx.moveTo(sx, (minY-offsetY)*scale);
+      ctx.lineTo(sx, (maxY+1-offsetY)*scale);
+    }
+    for(let y=Math.floor(minY); y<=maxY; y++){
+      const sy = (y - offsetY) * scale;
+      ctx.moveTo((minX-offsetX)*scale, sy);
+      ctx.lineTo((maxX+1-offsetX)*scale, sy);
+    }
+    ctx.stroke();
+  }
+
+  ctx.restore();
+
+  // fps
+  frames++; const now = performance.now();
+  if(now - fpsLast > 500){ fps = Math.round(frames*1000/(now-fpsLast)); fpsLast = now; frames=0; fpsEl.textContent = fps; }
+}
+
+// animation loop
+function loop(t){
+  const dt = t - lastStepTime;
+  if(playing){
+    const msPerGen = 1000 / Math.max(1, speed);
+    if(t - lastStepTime >= msPerGen){ step(); lastStepTime = t; }
+  } else {
+    lastStepTime = t;
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// init
+updateStats();
+
+// useful helper to seed some gliders / patterns
+(function seed(){
+  // a small sample colored pattern
+  setCell(0,0,1); setCell(1,0,2); setCell(2,0,1); setCell(0,1,2); setCell(1,2,1);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,370 @@
+--- original.html
++++ modified.html
+@@ -23,6 +23,18 @@
+   .small{font-size:12px;color:#cfe3ff}
+   .footer{position:absolute;left:16px;bottom:16px;background:rgba(0,0,0,0.45);padding:8px;border-radius:8px;font-size:12px}
+   .hint{font-size:12px;color:#93b6df}
++  .modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:1000}
++  .modal.active{display:flex}
++  .modal-content{background:var(--panel);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto}
++  .modal h2{margin:0 0 12px;font-size:18px}
++  textarea{width:100%;height:120px;background:#0b1220;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e6eef8;padding:8px;font-family:monospace;resize:vertical}
++  select{background:#0b1220;border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#e6eef8;padding:6px;width:100%}
++  .warning{background:rgba(255,200,0,0.1);border:1px solid rgba(255,200,0,0.3);border-radius:6px;padding:8px;margin:8px 0;font-size:12px;color:#ffd833}
++  .preview-ghost{position:fixed;pointer-events:none;z-index:999;opacity:0.6}
++  .offset-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
++  .offset-input{display:flex;align-items:center;gap:4px}
++  .offset-input input{width:60px;background:#0b1220;border:1px solid rgba(255,255,255,0.1);border-radius:4px;color:#e6eef8;padding:4px}
++  .rotation-controls{display:flex;gap:8px;margin:8px 0}
+   .toggle{display:flex;gap:6px}
+   .stat{font-size:12px;color:#9fb0d4}
+   .link{color:var(--accent);text-decoration:underline;cursor:pointer}
+@@ -37,6 +49,7 @@
+       <button id="stepBtn" class="btn">Step</button>
+       <button id="clearBtn" class="btn">Clear</button>
+       <button id="randBtn" class="btn">Randomize</button>
++      <button id="rleBtn" class="btn">Insert RLE</button>
+     </div>
+ 
+     <div class="row">
+@@ -101,6 +114,49 @@
+   </div>
+ </div>
+ 
++<div id="rleModal" class="modal">
++  <div class="modal-content">
++    <h2>Insert RLE Pattern</h2>
++    
++    <div style="margin-bottom:12px">
++      <label class="small">Load Example Pattern</label>
++      <select id="exampleSelect">
++        <option value="">-- Select an example --</option>
++      </select>
++    </div>
++    
++    <div style="margin-bottom:12px">
++      <label class="small">Or Paste RLE Content</label>
++      <textarea id="rleInput" placeholder="Paste RLE pattern here..."></textarea>
++    </div>
++    
++    <div style="margin-bottom:12px">
++      <label class="small">Pattern Color</label>
++      <div style="display:flex;gap:8px;margin-top:6px">
++        <button id="rleColorRed" class="btn primary">Red</button>
++        <button id="rleColorBlue" class="btn">Blue</button>
++      </div>
++    </div>
++    
++    <div class="offset-controls">
++      <div class="offset-input">
++        <label class="small">X Offset:</label>
++        <input type="number" id="offsetX" value="0">
++      </div>
++      <div class="offset-input">
++        <label class="small">Y Offset:</label>
++        <input type="number" id="offsetY" value="0">
++      </div>
++    </div>
++    
++    <div class="rotation-controls">
++      <label class="small">Rotation:</label>
++      <button class="btn" data-rotation="0">0°</button>
++      <button class="btn primary" data-rotation="90">90°</button>
++      <button class="btn" data-rotation="180">180°</button>
++      <button class="btn" data-rotation="270">270°</button>
++    </div>
++    
++    <div id="rleWarning" class="warning" style="display:none"></div>
++    
++    <div style="display:flex;gap:8px;margin-top:12px">
++      <button id="rlePlaceBtn" class="btn primary">Place Pattern</button>
++      <button id="rleCancelBtn" class="btn">Cancel</button>
++    </div>
++  </div>
++</div>
++
++<canvas id="previewCanvas" class="preview-ghost" style="display:none"></canvas>
++
+ <script>
+ /*
+   Implementation notes:
+@@ -142,6 +198,10 @@
+ let genEl = document.getElementById('generation');
+ let fpsEl = document.getElementById('fps');
+ 
++// RLE state
++let rlePattern = null;
++let rleColor = 1; // 1=red, 2=blue
++let rleRotation = 0; // 0, 90, 180, 270
++let rleOffsetX = 0, rleOffsetY = 0;
++
+ // viewport transform
+ let offsetX = 0, offsetY = 0; // world coordinate at canvas center
+@@ -195,6 +255,7 @@
+ const stepBtn = document.getElementById('stepBtn');
+ const clearBtn = document.getElementById('clearBtn');
+ const randBtn = document.getElementById('randBtn');
++const rleBtn = document.getElementById('rleBtn');
+ const brushRed = document.getElementById('brushRed');
+ const brushBlue = document.getElementById('brushBlue');
+ const brushErase = document.getElementById('brushErase');
+@@ -204,6 +265,7 @@
+ stepBtn.addEventListener('click', ()=>{ step(); render(); });
+ clearBtn.addEventListener('click', ()=>{ cells.clear(); generation=0; updateStats(); });
+ randBtn.addEventListener('click', ()=>{ randomize(); });
++rleBtn.addEventListener('click', ()=>{ openRLEModal(); });
+ brushRed.addEventListener('click', ()=>{ brush=1; });
+ brushBlue.addEventListener('click', ()=>{ brush=2; });
+ brushErase.addEventListener('click', ()=>{ brush=0; });
+@@ -352,6 +414,244 @@
+   setCell(0,0,1); setCell(1,0,2); setCell(2,0,1); setCell(0,1,2); setCell(1,2,1);
+ })();
+ </script>
++
++<script>
++// RLE Parser and Handler
++function parseRLE(rleString) {
++  const lines = rleString.trim().split('\n');
++  let pattern = [];
++  let width = 0, height = 0;
++  let rule = null;
++  let patternLines = [];
++  
++  for (let line of lines) {
++    line = line.trim();
++    if (line.startsWith('#')) continue; // comment
++    if (line.includes('x =') || line.includes('x=')) {
++      // header line
++      const match = line.match(/x\s*=\s*(\d+),\s*y\s*=\s*(\d+)(?:,\s*rule\s*=\s*([^\s]+))?/i);
++      if (match) {
++        width = parseInt(match[1]);
++        height = parseInt(match[2]);
++        rule = match[3] || 'B3/S23';
++      }
++    } else {
++      patternLines.push(line);
++    }
++  }
++  
++  const patternStr = patternLines.join('');
++  let x = 0, y = 0;
++  let runCount = '';
++  
++  for (let i = 0; i < patternStr.length; i++) {
++    const char = patternStr[i];
++    
++    if (char >= '0' && char <= '9') {
++      runCount += char;
++    } else if (char === 'b' || char === '.') {
++      // dead cells
++      const count = runCount ? parseInt(runCount) : 1;
++      x += count;
++      runCount = '';
++    } else if (char === 'o' || char === 'A') {
++      // live cells
++      const count = runCount ? parseInt(runCount) : 1;
++      for (let j = 0; j < count; j++) {
++        pattern.push({x, y});
++        x++;
++      }
++      runCount = '';
++    } else if (char === '$') {
++      // end of line
++      const count = runCount ? parseInt(runCount) : 1;
++      y += count;
++      x = 0;
++      runCount = '';
++    } else if (char === '!') {
++      // end of pattern
++      break;
++    }
++  }
++  
++  return { pattern, width, height, rule };
++}
++
++function rotatePattern(pattern, degrees) {
++  if (degrees === 0) return pattern;
++  
++  const rad = degrees * Math.PI / 180;
++  const cos = Math.round(Math.cos(rad));
++  const sin = Math.round(Math.sin(rad));
++  
++  return pattern.map(cell => ({
++    x: cell.x * cos - cell.y * sin,
++    y: cell.x * sin + cell.y * cos
++  }));
++}
++
++function normalizePattern(pattern) {
++  if (pattern.length === 0) return pattern;
++  
++  let minX = pattern[0].x, minY = pattern[0].y;
++  for (const cell of pattern) {
++    if (cell.x < minX) minX = cell.x;
++    if (cell.y < minY) minY = cell.y;
++  }
++  
++  return pattern.map(cell => ({
++    x: cell.x - minX,
++    y: cell.y - minY
++  }));
++}
++
++// RLE Modal functionality
++const rleModal = document.getElementById('rleModal');
++const rleInput = document.getElementById('rleInput');
++const exampleSelect = document.getElementById('exampleSelect');
++const rlePlaceBtn = document.getElementById('rlePlaceBtn');
++const rleCancelBtn = document.getElementById('rleCancelBtn');
++const rleWarning = document.getElementById('rleWarning');
++const rleColorRed = document.getElementById('rleColorRed');
++const rleColorBlue = document.getElementById('rleColorBlue');
++const offsetXInput = document.getElementById('offsetX');
++const offsetYInput = document.getElementById('offsetY');
++const previewCanvas = document.getElementById('previewCanvas');
++const previewCtx = previewCanvas.getContext('2d');
++
++// Load examples
++async function loadExamples() {
++  try {
++    const response = await fetch('/examples.json');
++    if (response.ok) {
++      const examples = await response.json();
++      exampleSelect.innerHTML = '<option value="">-- Select an example --</option>';
++      for (const [name, rle] of Object.entries(examples)) {
++        const option = document.createElement('option');
++        option.value = rle;
++        option.textContent = name;
++        exampleSelect.appendChild(option);
++      }
++    }
++  } catch (e) {
++    console.log('Could not load examples:', e);
++  }
++}
++
++loadExamples();
++
++exampleSelect.addEventListener('change', (e) => {
++  if (e.target.value) {
++    rleInput.value = e.target.value;
++    validateRLE();
++  }
++});
++
++rleInput.addEventListener('input', validateRLE);
++
++function validateRLE() {
++  const rleStr = rleInput.value.trim();
++  if (!rleStr) {
++    rleWarning.style.display = 'none';
++    return;
++  }
++  
++  try {
++    const result = parseRLE(rleStr);
++    if (result.rule && result.rule !== 'B3/S23') {
++      rleWarning.textContent = `Warning: Pattern uses rule "${result.rule}" but will be inserted using standard B3/S23 rules.`;
++      rleWarning.style.display = 'block';
++    } else {
++      rleWarning.style.display = 'none';
++    }
++  } catch (e) {
++    rleWarning.textContent = 'Invalid RLE format';
++    rleWarning.style.display = 'block';
++  }
++}
++
++rleColorRed.addEventListener('click', () => {
++  rleColor = 1;
++  rleColorRed.classList.add('primary');
++  rleColorBlue.classList.remove('primary');
++});
++
++rleColorBlue.addEventListener('click', () => {
++  rleColor = 2;
++  rleColorBlue.classList.add('primary');
++  rleColorRed.classList.remove('primary');
++});
++
++document.querySelectorAll('[data-rotation]').forEach(btn => {
++  btn.addEventListener('click', (e) => {
++    document.querySelectorAll('[data-rotation]').forEach(b => b.classList.remove('primary'));
++    e.target.classList.add('primary');
++    rleRotation = parseInt(e.target.dataset.rotation);
++  });
++});
++
++offsetXInput.addEventListener('input', (e) => { rleOffsetX = parseInt(e.target.value) || 0; });
++offsetYInput.addEventListener('input', (e) => { rleOffsetY = parseInt(e.target.value) || 0; });
++
++function openRLEModal() {
++  rleModal.classList.add('active');
++}
++
++function closeRLEModal() {
++  rleModal.classList.remove('active');
++  previewCanvas.style.display = 'none';
++  document.removeEventListener('mousemove', updatePreview);
++  document.removeEventListener('click', placePattern);
++}
++
++rleCancelBtn.addEventListener('click', closeRLEModal);
++
++rlePlaceBtn.addEventListener('click', () => {
++  const rleStr = rleInput.value.trim();
++  if (!rleStr) return;
++  
++  try {
++    const result = parseRLE(rleStr);
++    let pattern = normalizePattern(rotatePattern(result.pattern, rleRotation));
++    rlePattern = pattern;
++    
++    rleModal.classList.remove('active');
++    previewCanvas.style.display = 'block';
++    
++    document.addEventListener('mousemove', updatePreview);
++    document.addEventListener('click', placePattern);
++  } catch (e) {
++    alert('Invalid RLE pattern');
++  }
++});
++
++function updatePreview(e) {
++  if (!rlePattern) return;
++  
++  const cellSize = 8;
++  const maxX = Math.max(...rlePattern.map(c => c.x));
++  const maxY = Math.max(...rlePattern.map(c => c.y));
++  
++  previewCanvas.width = (maxX + 1) * cellSize;
++  previewCanvas.height = (maxY + 1) * cellSize;
++  previewCanvas.style.left = (e.clientX + 10) + 'px';
++  previewCanvas.style.top = (e.clientY + 10) + 'px';
++  
++  previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
++  previewCtx.fillStyle = rleColor === 1 ? '#d33b3b' : '#3b8ad3';
++  
++  for (const cell of rlePattern) {
++    previewCtx.fillRect(cell.x * cellSize, cell.y * cellSize, cellSize - 1, cellSize - 1);
++  }
++}
++
++function placePattern(e) {
++  if (!rlePattern) return;
++  
++  const pos = screenToCell(e.clientX, e.clientY);
++  
++  for (const cell of rlePattern) {
++    setCell(pos.x + cell.x + rleOffsetX, pos.y + cell.y + rleOffsetY, rleColor);
++  }
++  
++  rlePattern = null;
++  previewCanvas.style.display = 'none';
++  document.removeEventListener('mousemove', updatePreview);
++  document.removeEventListener('click', placePattern);
++}
++</script>
+ </body>
+ </html>

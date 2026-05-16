@@ -1,0 +1,20 @@
+Accelerometer(updated version 1.2)
+
+/*@START_MENU_TOKEN@*/About/*@END_MENU_TOKEN@*/
+
+This accelerometer tracks the motion and rotation of the user using Swift's Core Motion library. It is capable of tracking:
+    gravity in x, y and z
+    rotation in pitch, yaw, and roll
+    acceleration in x, y and z
+    change in rotation in x, y and z
+
+/*@START_MENU_TOKEN@*/Recording Data/*@END_MENU_TOKEN@*/
+
+To record, press the green button on the "Record" screen, which is the default page when opening the app. There are two rows of text below the button. The first row tells you where the data is being saved to, which is in the format of "storage_#". The text labeled as "data points" shows the number of data points that have been logged. There should be 60 data points logged per second, but it gets slower over time since more data points cause the app to slightly slow down. The data can be recorded when the app or device is closed, but switching pages will cause the data to stop recording. 
+
+/*@START_MENU_TOKEN@*/Storage/*@END_MENU_TOKEN@*/
+
+The storage menu shows all of the data that has been recorded. It shows the storage number and the time in which it was recorded. By clicking the dropdown menu on the side, there are options to copy or share the data. There are also options on the bottom of the screen which allow you to copy/share all data. The amount of storage in the app is only limited by the devices' capacity.
+
+/*@START_MENU_TOKEN@*/Settings/*@END_MENU_TOKEN@*/
+As of version 1.2, there is only one option, which deletes all data. When clicked, there is a prompt to enter a set of random characters. If entered correctly, the option to delete all data appears. Once deleted, the data cannot be recovered.

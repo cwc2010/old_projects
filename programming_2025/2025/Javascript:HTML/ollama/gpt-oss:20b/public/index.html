@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>gpt-oss:20b — streaming search demo</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; padding: 20px; max-width: 800px; margin: auto; }
+    textarea { width: 100%; height: 80px; }
+    #output { white-space: pre-wrap; border: 1px solid #ddd; padding: 12px; min-height: 200px; margin-top: 12px; border-radius: 6px; background:#f9f9f9; }
+    .meta { color: #666; font-size: 0.9em; margin-bottom: 8px; }
+    button { padding: 8px 14px; font-size: 1rem; }
+    #reason { white-space: pre-wrap; border:1px dashed #ccc; padding:8px; margin-top:8px; background:#fff; }
+  </style>
+</head>
+<body>
+  <h1>gpt-oss:20b — streaming search demo</h1>
+  <p class="meta">Make sure <code>ollama run gpt-oss:20b</code> is running on <code>http://localhost:11434</code>.</p>
+
+  <label>Query:</label>
+  <textarea id="query">What is the capital of France and give one interesting fact about it?</textarea>
+  <div style="margin-top:8px;">
+    <button id="runBtn">Search & Stream Answer</button>
+    <span id="status" class="meta"></span>
+  </div>
+
+  <div id="output" aria-live="polite"></div>
+
+  <details style="margin-top:12px;">
+    <summary>Reasoning (debug)</summary>
+    <pre id="reason"></pre>
+  </details>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const runBtn = document.getElementById('runBtn');
+    const queryEl = document.getElementById('query');
+    const output = document.getElementById('output');
+    const status = document.getElementById('status');
+    const reason = document.getElementById('reason');
+
+    function resetUI() {
+      output.textContent = '';
+      status.textContent = '';
+      reason.textContent = '';
+    }
+
+    socket.on('connect', () => {
+      status.textContent = 'connected';
+    });
+
+    socket.on('disconnect', () => {
+      status.textContent = 'disconnected';
+    });
+
+    socket.on('info', (m) => {
+      status.textContent = m;
+    });
+
+    socket.on('token', (t) => {
+      output.textContent += t;
+      window.scrollTo(0, document.body.scrollHeight);
+    });
+
+    socket.on('reason', (t) => {
+      reason.textContent += t;
+    });
+
+    socket.on('done', () => {
+      status.textContent = 'done';
+    });
+
+    socket.on('server_error', (err) => {
+      status.textContent = 'error: ' + err;
+    });
+
+    runBtn.addEventListener('click', () => {
+      resetUI();
+      const q = queryEl.value.trim();
+      if (!q) return alert('Type a query first');
+      status.textContent = 'starting...';
+      socket.emit('search_and_generate', { 
+        query: q, 
+        systemPrompt: 'You are a helpful assistant. Use the provided web snippets to answer succinctly.' 
+      });
+    });
+  </script>
+</body>
+</html>

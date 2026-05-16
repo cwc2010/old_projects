@@ -1,0 +1,20 @@
+cd /Users/calvinwchang2/Desktop/q/powersof2;
+(python3 /Users/calvinwchang2/Desktop/q/powersof2/pyexec1.py &> /Users/calvinwchang2/Desktop/q/powersof2/pyexec_output1.txt)&;
+(python3 /Users/calvinwchang2/Desktop/q/powersof2/pyexec2.py &> /Users/calvinwchang2/Desktop/q/powersof2/pyexec_output2.txt)&;
+(python3 /Users/calvinwchang2/Desktop/q/powersof2/pyexec3.py &> /Users/calvinwchang2/Desktop/q/powersof2/pyexec_output3.txt)&;
+(python3 /Users/calvinwchang2/Desktop/q/powersof2/pyexec4.py &> /Users/calvinwchang2/Desktop/q/powersof2/pyexec_output4.txt)&;
+(python3 /Users/calvinwchang2/Desktop/q/powersof2/pyexec5.py &> /Users/calvinwchang2/Desktop/q/powersof2/pyexec_output5.txt)&;
+(python3 /Users/calvinwchang2/Desktop/q/powersof2/pyexec6.py &> /Users/calvinwchang2/Desktop/q/powersof2/pyexec_output6.txt)&;
+(python3 /Users/calvinwchang2/Desktop/q/powersof2/pyexec7.py &> /Users/calvinwchang2/Desktop/q/powersof2/pyexec_output7.txt)&;
+(python3 /Users/calvinwchang2/Desktop/q/powersof2/pyexec8.py &> /Users/calvinwchang2/Desktop/q/powersof2/pyexec_output8.txt)&;
+disown;
+echo "\a\a\a\a\a\a\a\a\a\a";
+exit;
+
+
+
+
+
+
+
+

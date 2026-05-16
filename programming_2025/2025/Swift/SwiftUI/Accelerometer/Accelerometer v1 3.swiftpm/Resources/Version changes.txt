@@ -1,0 +1,8 @@
+/*@START_MENU_TOKEN@*/v1.2:/*@END_MENU_TOKEN@*/
+changed app color theme from green to blue
+added dynamic coloring based on the users' appearance (light/dark mode)
+removed the capital i and lowercase l in the "remove all data" setting to avoid confusion
+/*@START_MENU_TOKEN@*/v1.1:/*@END_MENU_TOKEN@*/
+added setting to remove all data
+added settings tab
+recording the data also records the date

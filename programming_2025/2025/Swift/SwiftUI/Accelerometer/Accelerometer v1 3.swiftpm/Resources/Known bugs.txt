@@ -1,0 +1,5 @@
+found in v1.1: keyboards do not work on text fields
+
+found in v1.1: data records very slightly less than 60fps, likely due to lag
+
+found in v1.0: when sharing data from the storage view, the data sometimes shows up blank 

@@ -1,0 +1,40 @@
+/*@START_MENU_TOKEN@*/
+
+
+<#found in v1.1: keyboards do not work on text fields(most likely not fixable, problem is in playgrounds app)#>
+
+<#found in v1.1: data records very slightly less than actual speed, likely due to lag#>
+
+
+
+
+
+
+
+
+
+
+
+#############################################
+#############################################
+############### PATCHED BUGS ################
+#############################################
+#############################################
+
+
+
+
+
+
+
+
+
+
+
+
+found in v1.0: when sharing data from the storage view, the data sometimes shows up blank
+    - PATCHED(1.4): bug due to argument passed as String instead of Binding<String>
+
+
+found in v1.4: first storage(storage_0) does not show
+    - PATCHED(1.4.1): off-by-one error :)

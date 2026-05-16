@@ -1,0 +1,17 @@
+{
+	"Glider": "bob$2bo$3o!",
+	"Block": "2o$2o!",
+	"Beehive": "b2ob$o2bo$b2o!",
+	"Loaf": "b2ob$o2bo$bobo$2bo!",
+	"Tub": "bob$obo$bo!",
+	"Barge": "bo2b$obob$bobo$2bo!",
+	"Boat": "2ob$obo$bo!",
+	"Ship": "2ob$obo$b2o!",
+	"Blinker": "3o!",
+	"Toad": "b3o$3o!",
+	"Beacon": "2o2b$o3b$3bo$2b2o!",
+	"LWSS": "bo2bo$o4b$o3bo$4o!",
+	"MWSS": "3bo2b$bo3bo$o5b$o4bo$5o!",
+	"HWSS": "3b2o2b$bo4bo$o6b$o5bo$6o!",
+	"Gosper Glider Gun": "24bo11b$22bobo11b$12b2o6b2o12b2o$11bo3bo4b2o12b2o$2o8bo5bo3b2o14b$2o8bo3bob2o4bobo11b$10bo5bo7bo11b$11bo3bo20b$12b2o!"
+}

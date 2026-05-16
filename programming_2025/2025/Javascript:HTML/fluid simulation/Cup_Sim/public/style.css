@@ -1,0 +1,16 @@
+/* Fullscreen, minimal styling — focus on simulation behavior */
+html, body {
+  height: 100%;
+  margin: 0;
+  background: #0b0b0b;
+  overflow: hidden;
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+
+canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  touch-action: none;
+  background: linear-gradient(180deg, #08111a 0%, #051217 100%);
+}

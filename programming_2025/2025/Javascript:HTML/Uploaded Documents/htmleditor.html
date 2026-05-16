@@ -1,0 +1,60 @@
+ <style>
+  textarea {
+    position: absolute;
+    top: 40px;
+    left: 0;
+    width: calc(50% + 5px);
+    height: calc(100% - 45px);
+    overflow:scroll;
+    font-family: monospace;
+    font-size: 15px;
+    border: 0;
+    border-top: 5px solid #000;
+    border-right: 5px solid #000;
+    border-radius: 0;
+    background-color: #BBBBBB;
+  }
+  iframe {
+    position: absolute;
+    top: 40px;
+    left: 50%;
+    width: 50%;
+    height: calc(100% - 40px);
+    border: 0;
+    border-radius: 0;
+  }
+  .top-menu {
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 5px;
+  }
+  button {
+    border-radius: 10px;
+    width: 70px;
+    height: 35px;
+  }
+</style>
+<div class="top-menu">
+<button id="run">Run</button><label for="liveupdate">Live update:</label> <input name="liveupdate" id="liveupdate" type="checkbox"> <a id="htmlurl" href="data:text/html,">HTML URL</a> <a id="texturl" href="data:plain/text,">Text URL</a>
+</div>
+<div>
+  <iframe id="iframe"></iframe>
+  <textarea id="textarea"></textarea>
+</div>
+<script>
+textarea.addEventListener("input", (e) => {
+  if (liveupdate.checked) {
+    let encoded = encodeURIComponent(textarea.value)
+    iframe.src = "data:text/html," + encoded
+    htmlurl.href = "data:text/html," + encoded
+    texturl.href = "data:text/plain," + encoded
+  }
+})
+run.addEventListener("click", (e) => {
+  let encoded = encodeURIComponent(textarea.value)
+  iframe.src = "data:text/html," + encoded
+  htmlurl.href = "data:text/html," + encoded
+  texturl.href = "data:text/plain," + encoded
+})
+</script>

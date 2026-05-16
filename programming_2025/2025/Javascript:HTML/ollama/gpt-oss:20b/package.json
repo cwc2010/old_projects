@@ -1,0 +1,17 @@
+{
+  "name": "ollama-stream-search-demo",
+  "version": "0.1.0",
+  "description": "Stream tokens from local gpt-oss:20b (Ollama) and use quick DuckDuckGo results for context.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^3.3.2",
+    "socket.io": "^4.7.2"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

@@ -1,0 +1,47 @@
+div.red {
+  background-color: #eb4034;
+}
+div.yellow {
+  background-color: #fcba03;
+}
+
+div.empty {
+  
+}
+
+div.textblock {
+  border: 1px solid #ffffff !important;
+}
+
+div.red, div.yellow, div.empty, div.textblock {
+  min-width: 30px;
+  min-height: 30px;
+  text-align: center;
+  display: inline-block;
+  margin: 3px;
+  padding: 0;
+  border: 1px solid #000000;
+  border-radius: 1000000px;
+}
+
+div.gameRow {
+  min-width: 30px;
+  min-height: calc(30px * 6);
+  display: inline-block;
+}
+
+@media (hover: hover) {
+  div.gameRow:hover {
+    background-color: #cccccc;
+  }
+}
+button {
+  width: 90px;
+  height: 30px;
+  margin: 5px;
+  padding: 2px;
+  border-radius: 5px;
+  background-color: #cccccc;
+  color: #000000;
+  border: 0;
+}

@@ -1,0 +1,22 @@
+/*@START_MENU_TOKEN@*/v1.4.1:/*@END_MENU_TOKEN@*/
+changed default fps to 120
+bug fixes:
+  - fixed bug where the first storage record doesn't show in storage
+  - fixed bug where clicking share in storage shares an empty text file 
+can see recorded fps in storage
+added speed adjustment for log and graph
+/*@START_MENU_TOKEN@*/v1.4:/*@END_MENU_TOKEN@*/
+added quaternions to the log and graph
+this version is a backup for v1.4.1
+log runs slightly faster
+/*@START_MENU_TOKEN@*/v1.3:/*@END_MENU_TOKEN@*/
+Added a graph page
+ - lines can be toggled on/off
+/*@START_MENU_TOKEN@*/v1.2:/*@END_MENU_TOKEN@*/
+changed app color theme from green to blue
+added dynamic coloring based on the users' appearance (light/dark mode)
+removed the capital i and lowercase l in the "remove all data" setting to avoid confusion
+/*@START_MENU_TOKEN@*/v1.1:/*@END_MENU_TOKEN@*/
+added setting to remove all data
+added settings tab
+recording the data also records the date

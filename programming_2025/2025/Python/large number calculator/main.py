@@ -1,0 +1,1 @@
+open("output.text","a").write(str(2**32))

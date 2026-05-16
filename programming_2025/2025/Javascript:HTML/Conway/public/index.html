@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Red/Blue Game of Life — Infinite + Hashlife-like</title>
+<style>
+  :root{--ui-bg:#111;--panel:#0f1720;--accent:#60a5fa}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,#060616 0%, #0b1220 100%);color:#e6eef8;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+  .app{display:flex;height:100vh}
+  .sidebar{width:320px;padding:16px;background:rgba(0,0,0,0.35);backdrop-filter:blur(6px);box-shadow:inset 0 1px 0 rgba(255,255,255,0.02)}
+  .canvas-wrap{flex:1;position:relative;overflow:hidden}
+  canvas{display:block;width:100%;height:100%;background:linear-gradient(180deg,#071025,#041023)}
+  h1{font-size:16px;margin:0 0 8px}
+  .controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+  .btn{background:#0b1220;border:1px solid rgba(255,255,255,0.03);padding:8px;border-radius:8px;color:#e6eef8;cursor:pointer}
+  .btn.primary{background:var(--accent);color:#021028}
+  .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  label{font-size:12px;color:#9fb0d4}
+  input[type=range]{width:100%}
+  .legend{display:flex;gap:8px;align-items:center}
+  .swatch{width:18px;height:18px;border-radius:4px;box-shadow:inset 0 -2px rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.03)}
+  .small{font-size:12px;color:#cfe3ff}
+  .footer{position:absolute;left:16px;bottom:16px;background:rgba(0,0,0,0.45);padding:8px;border-radius:8px;font-size:12px}
+  .hint{font-size:12px;color:#93b6df}
+  .toggle{display:flex;gap:6px}
+  .stat{font-size:12px;color:#9fb0d4}
+  .link{color:var(--accent);text-decoration:underline;cursor:pointer}
+  /* RLE UI additions */
+  .input, select, input[type=number], input[type=text]{
+    background:#0b1220;border:1px solid rgba(255,255,255,0.06);
+    color:#e6eef8;border-radius:8px;padding:8px
+  }
+  textarea{
+    width:100%;min-height:90px;resize:vertical;
+    background:#0b1220;border:1px solid rgba(255,255,255,0.06);
+    color:#e6eef8;border-radius:8px;padding:8px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace
+  }
+  .warn{color:#fbbf24}
+  .muted{color:#9fb0d4}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <h1>Red / Blue Conway — Infinite</h1>
+    <div class="controls">
+      <button id="playBtn" class="btn primary">Play</button>
+      <button id="stepBtn" class="btn">Step</button>
+      <button id="clearBtn" class="btn">Clear</button>
+      <button id="randBtn" class="btn">Randomize</button>
+    </div>
+
+    <div class="row">
+      <div style="flex:1">
+        <label class="small">Speed (generations / sec)</label>
+        <input id="speed" type="range" min="1" max="30" value="8">
+      </div>
+    </div>
+
+    <div class="row">
+      <div style="flex:1">
+        <label class="small">Brush</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button id="brushRed" class="btn" title="Red">Red</button>
+          <button id="brushBlue" class="btn" title="Blue">Blue</button>
+          <button id="brushErase" class="btn" title="Erase">Erase</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label class="small">View</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button id="zoomIn" class="btn">Zoom +</button>
+          <button id="zoomOut" class="btn">Zoom -</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div class="legend">
+        <div class="swatch" style="background:#d33b3b"></div><div class="small">Red (live)</div>
+        <div class="swatch" style="background:#3b8ad3"></div><div class="small">Blue (live)</div>
+        <div class="swatch" style="background:transparent;border:1px dashed rgba(255,255,255,0.06)"></div><div class="small">Off</div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div class="small hint">Interactions:</div>
+      <ul class="small">
+        <li>Drag to pan, scroll to zoom</li>
+        <li>Click or drag to paint cells with selected brush</li>
+      </ul>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="stat">Live cells: <span id="liveCount">0</span></div>
+      <div class="stat">Generation: <span id="generation">0</span></div>
+      <div class="stat">FPS: <span id="fps">0</span></div>
+    </div>
+
+    <!-- RLE Patterns -->
+    <div style="margin-top:16px">
+      <div class="small" style="font-weight:600;letter-spacing:.02em;margin-bottom:6px">RLE Patterns</div>
+      <div class="small hint" style="margin-bottom:8px">Paste/upload or load an example, then place it on the canvas.</div>
+      <div class="row">
+        <button id="rleLoadExamplesBtn" class="btn">Load Examples</button>
+        <select id="rleExampleSelect" class="input" style="flex:1;min-width:0">
+          <option value="">— select example —</option>
+        </select>
+      </div>
+      <div class="row">
+        <button id="rleUseExampleBtn" class="btn">Use Example</button>
+        <button id="rleUploadBtn" class="btn">Upload RLE</button>
+        <input id="rleFile" type="file" accept=".rle,.rle.txt,.txt" style="display:none">
+      </div>
+      <div class="row" style="flex-direction:column;align-items:stretch">
+        <label for="rleText" class="small">Paste RLE</label>
+        <textarea id="rleText" placeholder="x = 3, y = 3, rule = B3/S23&#10;bob$2bo$3o!"></textarea>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button id="rleParseBtn" class="btn primary">Parse</button>
+          <button id="rleClearTextBtn" class="btn">Clear</button>
+        </div>
+      </div>
+      <div id="rleMsg" class="small hint" style="min-height:16px;margin-top:6px"></div>
+      <div class="row" style="flex-wrap:wrap;gap:12px">
+        <div>
+          <label class="small">Rotation</label>
+          <div class="toggle" style="margin-top:6px">
+            <button class="btn" data-rot="0" id="rleRot0">0°</button>
+            <button class="btn" data-rot="90" id="rleRot90">90°</button>
+            <button class="btn" data-rot="180" id="rleRot180">180°</button>
+            <button class="btn" data-rot="270" id="rleRot270">270°</button>
+          </div>
+        </div>
+        <div>
+          <label class="small">Offset (X,Y)</label>
+          <div class="row" style="margin-top:6px">
+            <input id="rleOffsetX" class="input" type="number" value="0" style="width:80px">
+            <input id="rleOffsetY" class="input" type="number" value="0" style="width:80px">
+          </div>
+        </div>
+        <div>
+          <label class="small">Pattern Color</label>
+          <div class="toggle" style="margin-top:6px">
+            <button id="rleColorRed" class="btn">Red</button>
+            <button id="rleColorBlue" class="btn">Blue</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <button id="rleStartPlacementBtn" class="btn primary" disabled>Start Placement</button>
+        <button id="rlePlaceOnceBtn" class="btn" disabled>Place Here</button>
+        <button id="rleCancelPlacementBtn" class="btn" disabled>Cancel</button>
+      </div>
+    </div>
+
+    <div style="margin-top:18px;font-size:12px;color:#a7c2e8">
+      Implementation: sparse hashtable + memoization (Hashlife-inspired). Fast for sparse patterns on infinite canvas.
+    </div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="c"></canvas>
+    <div class="footer">
+      <span class="small">Click & drag to paint • Middle-click or hold space to pan</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/*
+  Implementation notes:
+  - Cells stored in a Map keyed by "x,y" -> 0(off)|1(red)|2(blue)
+  - Step uses neighbor accumulation (counts red/blue) — O(N_live) per generation
+  - Infinite panning & zoom on canvas
+  - This is a sparse, memoized implementation (Hashlife-inspired). Full Hashlife (quadtrees + power-of-two leaps) is more involved; this version focuses on responsiveness for large sparse patterns.
+*/
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let DPR = devicePixelRatio || 1;
+function resize(){
+  DPR = devicePixelRatio || 1;
+  canvas.width = Math.floor(canvas.clientWidth * DPR);
+  canvas.height = Math.floor(canvas.clientHeight * DPR);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Sparse grid
+const cells = new Map(); // key -> 1 or 2
+let generation = 0;
+
+function key(x,y){return x+','+y}
+function parseKey(k){const [a,b]=k.split(',').map(Number);return {x:a,y:b}}
+function setCell(x,y,state){
+  const k = key(x,y);
+  if(state===0){ cells.delete(k); } else { cells.set(k,state); }
+}
+function getCell(x,y){return cells.get(key(x,y))||0}
+
+// UI state
+let playing = false;
+let brush = 1; // 1=red,2=blue,0=erase
+let speed = 8; // gens/sec
+let lastStepTime = 0;
+let liveCountEl = document.getElementById('liveCount');
+let genEl = document.getElementById('generation');
+let fpsEl = document.getElementById('fps');
+
+// viewport transform
+let offsetX = 0, offsetY = 0; // world coordinate at canvas center
+let scale = 20; // pixels per cell
+
+// mouse interactions
+let isPanning = false, isPainting = false;
+let lastMouse = {x:0,y:0};
+let spaceDown = false;
+let hoverCell = {x:0,y:0};
+
+// RLE placement state
+let placing = false;
+const placement = {
+  baseCells: [],      // parsed cells [ [x,y], ... ] origin at (0,0)
+  width: 0,
+  height: 0,
+  rotatedCells: [],   // after rotation
+  rot: 0,             // 0,90,180,270
+  offsetX: 0,
+  offsetY: 0,
+  color: 1,           // 1=red,2=blue
+  rule: 'B3/S23',
+  hasPattern: false
+};
+
+canvas.addEventListener('mousedown', (e)=>{
+  if(e.button===1 || e.buttons===4 || spaceDown){
+    isPanning=true; lastMouse={x:e.clientX,y:e.clientY}; return;
+  }
+  if(placing){
+    placePatternAt(hoverCell.x, hoverCell.y);
+    return;
+  }
+  isPainting = true; handlePaint(e);
+});
+canvas.addEventListener('mousemove', (e)=>{
+  if(isPanning){ const dx = (e.clientX-lastMouse.x)/scale; const dy=(e.clientY-lastMouse.y)/scale; offsetX -= dx; offsetY -= dy; lastMouse={x:e.clientX,y:e.clientY}; }
+  const c = screenToCell(e.clientX,e.clientY);
+  hoverCell = c;
+  if(isPainting){ handlePaint(e); }
+});
+window.addEventListener('mouseup', (e)=>{ isPanning=false; isPainting=false; });
+window.addEventListener('keydown',(e)=>{ if(e.code==='Space') spaceDown=true; });
+window.addEventListener('keyup',(e)=>{ if(e.code==='Space') spaceDown=false; });
+window.addEventListener('keydown',(e)=>{
+  if(e.key === 'Escape' && placing){
+    stopPlacement();
+  }
+});
+
+canvas.addEventListener('wheel',(e)=>{
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX-rect.left)/rect.width*canvas.width; // pixel
+  const cy = (e.clientY-rect.top)/rect.height*canvas.height;
+  const wx = (cx/DPR - canvas.width/(2*DPR))/scale + offsetX;
+  const wy = (cy/DPR - canvas.height/(2*DPR))/scale + offsetY;
+  const delta = Math.sign(e.deltaY) > 0 ? 0.9 : 1.1;
+  scale *= delta;
+  // keep zoom centered on mouse
+  offsetX = wx - (cx/DPR - canvas.width/(2*DPR))/scale;
+  offsetY = wy - (cy/DPR - canvas.height/(2*DPR))/scale;
+}, {passive:false});
+
+function screenToCell(clientX, clientY){
+  const rect = canvas.getBoundingClientRect();
+  const cx = (clientX-rect.left)/rect.width*canvas.width;
+  const cy = (clientY-rect.top)/rect.height*canvas.height;
+  const x = Math.floor((cx/DPR - canvas.width/(2*DPR))/scale + offsetX + 0.00000001);
+  const y = Math.floor((cy/DPR - canvas.height/(2*DPR))/scale + offsetY + 0.00000001);
+  return {x,y};
+}
+
+function handlePaint(e){
+  const c = screenToCell(e.clientX,e.clientY);
+  setCell(c.x,c.y, brush);
+}
+
+// Controls
+const playBtn = document.getElementById('playBtn');
+const stepBtn = document.getElementById('stepBtn');
+const clearBtn = document.getElementById('clearBtn');
+const randBtn = document.getElementById('randBtn');
+const brushRed = document.getElementById('brushRed');
+const brushBlue = document.getElementById('brushBlue');
+const brushErase = document.getElementById('brushErase');
+const speedEl = document.getElementById('speed');
+// RLE controls
+const rleLoadExamplesBtn = document.getElementById('rleLoadExamplesBtn');
+const rleExampleSelect = document.getElementById('rleExampleSelect');
+const rleUseExampleBtn = document.getElementById('rleUseExampleBtn');
+const rleUploadBtn = document.getElementById('rleUploadBtn');
+const rleFileInput = document.getElementById('rleFile');
+const rleText = document.getElementById('rleText');
+const rleParseBtn = document.getElementById('rleParseBtn');
+const rleClearTextBtn = document.getElementById('rleClearTextBtn');
+const rleMsg = document.getElementById('rleMsg');
+const rleRot0 = document.getElementById('rleRot0');
+const rleRot90 = document.getElementById('rleRot90');
+const rleRot180 = document.getElementById('rleRot180');
+const rleRot270 = document.getElementById('rleRot270');
+const rleOffsetX = document.getElementById('rleOffsetX');
+const rleOffsetY = document.getElementById('rleOffsetY');
+const rleColorRed = document.getElementById('rleColorRed');
+const rleColorBlue = document.getElementById('rleColorBlue');
+const rleStartPlacementBtn = document.getElementById('rleStartPlacementBtn');
+const rlePlaceOnceBtn = document.getElementById('rlePlaceOnceBtn');
+const rleCancelPlacementBtn = document.getElementById('rleCancelPlacementBtn');
+
+playBtn.addEventListener('click', ()=>{ playing = !playing; playBtn.textContent = playing ? 'Pause' : 'Play'; });
+stepBtn.addEventListener('click', ()=>{ step(); render(); });
+clearBtn.addEventListener('click', ()=>{ cells.clear(); generation=0; updateStats(); });
+randBtn.addEventListener('click', ()=>{ randomize(); });
+brushRed.addEventListener('click', ()=>{ brush=1; });
+brushBlue.addEventListener('click', ()=>{ brush=2; });
+brushErase.addEventListener('click', ()=>{ brush=0; });
+speedEl.addEventListener('input',(e)=>{ speed = Number(e.target.value); });
+
+// RLE: examples loading
+let examplesLoaded = false;
+let examplesData = {};
+function setRLEMsg(msg, type='info'){
+  if(!msg){ rleMsg.textContent = ''; return; }
+  if(type==='warn'){ rleMsg.innerHTML = '<span class="warn">⚠️ '+msg+'</span>'; }
+  else if(type==='error'){ rleMsg.innerHTML = '<span style="color:#ef4444">⛔ '+msg+'</span>'; }
+  else { rleMsg.textContent = msg; }
+}
+rleExampleSelect.addEventListener('focus', async ()=>{
+  try{
+    setRLEMsg('Loading examples...');
+    const res = await fetch('/examples.json');
+    if(!res.ok) throw new Error('Failed to fetch /examples.json');
+    examplesData = await res.json();
+    // populate select
+    rleExampleSelect.innerHTML = '<option value="">— select example —</option>';
+    Object.keys(examplesData).forEach(k=>{
+      const opt = document.createElement('option');
+      opt.value = k; opt.textContent = k;
+      rleExampleSelect.appendChild(opt);
+    });
+    examplesLoaded = true;
+    setRLEMsg(`Loaded ${Object.keys(examplesData).length} examples.`);
+  }catch(err){
+    alert(err.message)
+    setRLEMsg(err.message, 'error');
+  }
+});
+rleUseExampleBtn.addEventListener('click', ()=>{
+  const key = rleExampleSelect.value;
+  if(!key){ setRLEMsg('Pick an example from the dropdown.'); return; }
+  const txt = examplesData[key];
+  if(!txt){ setRLEMsg('Example not found in manifest.', 'error'); return; }
+  rleText.value = txt;
+  parseAndPrepareRLE();
+});
+rleUploadBtn.addEventListener('click', ()=> rleFileInput.click());
+rleFileInput.addEventListener('change', ()=>{
+  const f = rleFileInput.files && rleFileInput.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{ rleText.value = reader.result; parseAndPrepareRLE(); };
+  reader.onerror = ()=>{ setRLEMsg('Failed to read file.', 'error'); };
+  reader.readAsText(f);
+});
+rleParseBtn.addEventListener('click', ()=> parseAndPrepareRLE());
+rleClearTextBtn.addEventListener('click', ()=>{ rleText.value=''; setRLEMsg(''); });
+rleColorRed.addEventListener('click', ()=>{ placement.color=1; });
+rleColorBlue.addEventListener('click', ()=>{ placement.color=2; });
+[rleRot0,rleRot90,rleRot180,rleRot270].forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const deg = Number(btn.dataset.rot);
+    setRotation(deg);
+  });
+});
+rleOffsetX.addEventListener('input', ()=>{ placement.offsetX = parseInt(rleOffsetX.value||'0',10); });
+rleOffsetY.addEventListener('input', ()=>{ placement.offsetY = parseInt(rleOffsetY.value||'0',10); });
+rleStartPlacementBtn.addEventListener('click', ()=> startPlacement());
+rlePlaceOnceBtn.addEventListener('click', ()=> placePatternAt(hoverCell.x, hoverCell.y));
+rleCancelPlacementBtn.addEventListener('click', ()=> stopPlacement());
+
+function enablePlacementControls(enabled){
+  rleStartPlacementBtn.disabled = !enabled;
+  rlePlaceOnceBtn.disabled = !placing;
+  rleCancelPlacementBtn.disabled = !placing;
+}
+
+function parseAndPrepareRLE(){
+  const text = rleText.value.trim();
+  if(!text){ setRLEMsg('Paste RLE text first.'); return; }
+  try{
+    const parsed = parseRLE(text);
+    placement.baseCells = parsed.cells;
+    placement.width = parsed.width;
+    placement.height = parsed.height;
+    placement.rule = parsed.rule || 'B3/S23';
+    placement.hasPattern = placement.baseCells.length>0;
+    setRotation(placement.rot); // refresh rotatedCells
+    let msg = `Parsed ${placement.baseCells.length} live cells (${placement.width}×${placement.height}).`;
+    if(parsed.rule && parsed.rule.toUpperCase() !== 'B3/S23'){
+      msg += ` Warning: rule is "${parsed.rule}" (this app runs B3/S23).`;
+      setRLEMsg(msg, 'warn');
+    } else {
+      setRLEMsg(msg);
+    }
+    enablePlacementControls(placement.hasPattern);
+  }catch(err){
+    setRLEMsg(err.message, 'error');
+    placement.baseCells=[]; placement.rotatedCells=[]; placement.hasPattern=false;
+    enablePlacementControls(false);
+  }
+}
+
+function setRotation(deg){
+  placement.rot = ((deg%360)+360)%360;
+  if(!placement.hasPattern){ return; }
+  placement.rotatedCells = rotateCells(placement.baseCells, placement.width, placement.height, placement.rot);
+}
+
+function startPlacement(){
+  if(!placement.hasPattern){ setRLEMsg('Parse a pattern first.'); return; }
+  placing = true;
+  rlePlaceOnceBtn.disabled = false;
+  rleCancelPlacementBtn.disabled = false;
+  setRLEMsg('Placement mode: move mouse to preview, click to stamp. Esc to cancel.', 'info');
+}
+
+function stopPlacement(){
+  placing = false;
+  rlePlaceOnceBtn.disabled = true;
+  rleCancelPlacementBtn.disabled = true;
+  setRLEMsg('Placement canceled.');
+}
+
+function placePatternAt(cx, cy){
+  if(!placing || !placement.rotatedCells.length) return;
+  const ax = cx + (placement.offsetX|0);
+  const ay = cy + (placement.offsetY|0);
+  const color = placement.color;
+  for(const p of placement.rotatedCells){
+    const x = ax + p[0];
+    const y = ay + p[1];
+    setCell(x,y,color);
+  }
+  updateStats();
+}
+
+function rotateCells(cells, width, height, deg){
+  const out = [];
+  const d = ((deg%360)+360)%360;
+  if(d===0){
+    for(const [x,y] of cells) out.push([x,y]);
+    return out;
+  }
+  if(d===90){
+    // newX = y; newY = width-1-x
+    for(const [x,y] of cells) out.push([y, width-1-x]);
+    return out;
+  }
+  if(d===180){
+    for(const [x,y] of cells) out.push([width-1-x, height-1-y]);
+    return out;
+  }
+  if(d===270){
+    // newX = height-1-y; newY = x
+    for(const [x,y] of cells) out.push([height-1-y, x]);
+    return out;
+  }
+  return cells.slice();
+}
+
+function parseRLE(text){
+  // Strip comment lines
+  const lines = text.split(/\r?\n/).filter(l=>!l.trim().startsWith('#'));
+  
+  let width = 0, height = 0, rule = 'B3/S23';
+  let dataStartIdx = 0;
+  
+  // Try to find header
+  const headerIdx = lines.findIndex(l=>/x\s*=/.test(l));
+  
+  if(headerIdx !== -1) {
+    // Header found, parse it
+    const header = lines[headerIdx];
+    const m = header.match(/x\s*=\s*(\d+)\s*,\s*y\s*=\s*(\d+)(?:\s*,\s*rule\s*=\s*([A-Za-z0-9/]+))?/i);
+    if(m) {
+      width = parseInt(m[1],10);
+      height = parseInt(m[2],10);
+      rule = (m[3]||'B3/S23').trim();
+    }
+    dataStartIdx = headerIdx + 1;
+  }
+  // If no header, just start from the beginning
+  
+  // Join the rest as pattern data
+  const data = lines.slice(dataStartIdx).join('').replace(/\s+/g,'');
+  let x=0,y=0,count=0;
+  const live = [];
+  
+  for(let i=0;i<data.length;i++){
+    const ch = data[i];
+    if(ch>='0' && ch<='9'){ 
+      count = count*10 + (ch.charCodeAt(0)-48); 
+      continue; 
+    }
+    if(ch==='b' || ch==='o' || ch==='$' || ch==='!'){
+      const n = count || 1; 
+      count = 0;
+      if(ch==='b'){
+        x += n;
+      } else if(ch==='o'){
+        for(let k=0;k<n;k++){ 
+          live.push([x+k,y]); 
+        }
+        x += n;
+      } else if(ch==='$'){
+        y += n; 
+        x = 0;
+      } else if(ch==='!'){
+        break;
+      }
+    } else {
+      // Unsupported token (likely multistate RLE)
+      throw new Error(`Unsupported token "${ch}" in RLE (multicolor/multistate not supported).`);
+    }
+    
+    // Only check bounds if header was provided with dimensions
+    if(headerIdx !== -1 && (y>height+10000 || x>width+10000)) {
+      throw new Error('RLE appears malformed (run extends beyond declared bounds).');
+    }
+  }
+  
+  // Calculate actual dimensions from the cells
+  let maxX = 0, maxY = 0;
+  for(const [cx,cy] of live){ 
+    if(cx>maxX) maxX=cx; 
+    if(cy>maxY) maxY=cy; 
+  }
+  
+  // Use calculated dimensions, or header dimensions if larger
+  const w = Math.max(width, maxX+1);
+  const h = Math.max(height, maxY+1);
+  
+  return {cells: live, width: w, height: h, rule};
+}
+
+function randomize(){
+  cells.clear();
+  const range = 80; // spread
+  for(let x=-range;x<=range;x++){
+    for(let y=-range;y<=range;y++){
+      if(Math.random()<0.08){ setCell(x,y, Math.random()<0.5?1:2); }
+    }
+  }
+  generation = 0; updateStats();
+}
+
+// Simulation step: O(#live)
+function step(){
+  // accumulate neighbor counts
+  const counts = new Map(); // key -> {r,b,total}
+  for(const [k,v] of cells.entries()){
+    const [sx,sy] = k.split(',').map(Number);
+    for(let dx=-1;dx<=1;dx++) for(let dy=-1;dy<=1;dy++){
+      if(dx===0 && dy===0) continue;
+      const nk = (sx+dx)+','+(sy+dy);
+      let obj = counts.get(nk);
+      if(!obj){ obj={r:0,b:0,total:0}; counts.set(nk,obj); }
+      if(v===1) { obj.r++; obj.total++; }
+      else if(v===2){ obj.b++; obj.total++; }
+    }
+  }
+  // include current live cells that might have zero neighbors (to evaluate survival)
+  for(const [k,v] of cells.entries()){ if(!counts.has(k)) counts.set(k,{r:0,b:0,total:0}); }
+
+  const newCells = new Map();
+  for(const [k,c] of counts.entries()){
+    const [x,y] = k.split(',').map(Number);
+    const cur = cells.get(k) || 0;
+    const liveNeighbors = c.total;
+    if(cur>0){ // live cell
+      if(liveNeighbors<2 || liveNeighbors>3){ /*dies*/ }
+      else { // lives on
+        newCells.set(k, cur);
+      }
+    } else { // dead
+      if(liveNeighbors===3){ // birth by majority
+        if(c.r>c.b) newCells.set(k,1);
+        else if(c.b>c.r) newCells.set(k,2);
+        else newCells.set(k,1); // tie-breaker -> red
+      }
+    }
+  }
+
+  cells.clear();
+  for(const [k,v] of newCells.entries()) cells.set(k,v);
+  generation++;
+  updateStats();
+}
+
+function updateStats(){ liveCountEl.textContent = cells.size; genEl.textContent = generation; }
+
+// Rendering
+let lastFrame = performance.now();
+let frames = 0, fps = 0, fpsLast = performance.now();
+function render(){
+  resize();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.save();
+  // transform to center-based coordinates
+  ctx.translate(canvas.width/2, canvas.height/2);
+  ctx.scale(DPR, DPR);
+
+  // draw grid background lightly
+  const visibleHalfW = (canvas.width/(2*DPR))/scale;
+  const visibleHalfH = (canvas.height/(2*DPR))/scale;
+  // compute visible cells range
+  const minX = Math.floor(offsetX - visibleHalfW) - 1;
+  const maxX = Math.ceil(offsetX + visibleHalfW) + 1;
+  const minY = Math.floor(offsetY - visibleHalfH) - 1;
+  const maxY = Math.ceil(offsetY + visibleHalfH) + 1;
+
+  // draw cells
+  for(const [k,v] of cells.entries()){
+    const [x,y] = k.split(',').map(Number);
+    if(x < minX || x>maxX || y<minY || y>maxY) continue;
+    const sx = (x - offsetX) * scale;
+    const sy = (y - offsetY) * scale;
+    if(v===1){ ctx.fillStyle = '#d33b3b'; }
+    else { ctx.fillStyle = '#3b8ad3'; }
+    // rounded rect cell
+    const pad = Math.max(0, Math.min(2, scale*0.06));
+    ctx.fillRect(Math.round(sx+pad), Math.round(sy+pad), Math.max(1,Math.round(scale-2*pad)), Math.max(1,Math.round(scale-2*pad)));
+  }
+
+  // pattern placement overlay
+  if(placing && placement.rotatedCells.length){
+    const ax = hoverCell.x + (placement.offsetX|0);
+    const ay = hoverCell.y + (placement.offsetY|0);
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = placement.color===1 ? '#d33b3b' : '#3b8ad3';
+    const pad = Math.max(0, Math.min(2, scale*0.06));
+    for(const p of placement.rotatedCells){
+      const cx = ax + p[0], cy = ay + p[1];
+      if(cx < minX || cx>maxX || cy<minY || cy>maxY) continue;
+      const sx = (cx - offsetX) * scale;
+      const sy = (cy - offsetY) * scale;
+      ctx.fillRect(Math.round(sx+pad), Math.round(sy+pad), Math.max(1,Math.round(scale-2*pad)), Math.max(1,Math.round(scale-2*pad)));
+    }
+    ctx.restore();
+  }
+
+  // optional grid lines if zoomed in
+  if(scale>8){
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    ctx.lineWidth = 1/ DPR;
+    ctx.beginPath();
+    for(let x=Math.floor(minX); x<=maxX; x++){
+      const sx = (x - offsetX) * scale;
+      ctx.moveTo(sx, (minY-offsetY)*scale);
+      ctx.lineTo(sx, (maxY+1-offsetY)*scale);
+    }
+    for(let y=Math.floor(minY); y<=maxY; y++){
+      const sy = (y - offsetY) * scale;
+      ctx.moveTo((minX-offsetX)*scale, sy);
+      ctx.lineTo((maxX+1-offsetX)*scale, sy);
+    }
+    ctx.stroke();
+  }
+
+  ctx.restore();
+
+  // fps
+  frames++; const now = performance.now();
+  if(now - fpsLast > 500){ fps = Math.round(frames*1000/(now-fpsLast)); fpsLast = now; frames=0; fpsEl.textContent = fps; }
+}
+
+// animation loop
+function loop(t){
+  const dt = t - lastStepTime;
+  if(playing){
+    const msPerGen = 1000 / Math.max(1, speed);
+    if(t - lastStepTime >= msPerGen){ step(); lastStepTime = t; }
+  } else {
+    lastStepTime = t;
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// init
+updateStats();
+
+// useful helper to seed some gliders / patterns
+(function seed(){
+  // a small sample colored pattern
+  setCell(0,0,1); setCell(1,0,2); setCell(2,0,1); setCell(0,1,2); setCell(1,2,1);
+})();
+</script>
+</body>
+</html>

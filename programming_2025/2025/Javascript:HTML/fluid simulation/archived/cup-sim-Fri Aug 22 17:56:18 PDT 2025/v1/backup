@@ -1,0 +1,3 @@
+#!/bin/zsh
+
+cp -R "/Users/calvinwchang2/Library/Mobile Documents/com~apple~CloudDocs/Programming/2025/Javascript:HTML/fluid simulation/Cup-Sim/v1/Application" "/Users/calvinwchang2/Library/Mobile Documents/com~apple~CloudDocs/Programming/2025/Javascript:HTML/fluid simulation/Cup-Sim/v1/backups/$(date)"

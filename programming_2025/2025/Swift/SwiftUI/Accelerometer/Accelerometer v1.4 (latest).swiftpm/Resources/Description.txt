@@ -1,0 +1,27 @@
+Accelerometer(updated version 1.4.1)
+
+/*@START_MENU_TOKEN@*/About/*@END_MENU_TOKEN@*/
+
+The accelerometer tracks the motion and rotation of the user using Swift's Core Motion library. It is capable of tracking:
+    gravity in x, y and z
+    rotation in pitch, yaw, and roll, and the four quaternions(w,x,y,z)
+    acceleration in x, y and z
+    change in rotation in x, y and z
+
+/*@START_MENU_TOKEN@*/Recording Data/*@END_MENU_TOKEN@*/
+
+To record, press the green button on the "Record" screen, which is the default page when opening the app. More information can be seen below the button. It shows where the data is being saved to, which is in the format of "storage_#". The text labeled as "data points" shows the number of data points that have been logged. There is also a fps counter. This adapts when recording to match the real FPS. The amount of data points logged per second can be adjusted via the "Settings" menu. The data can be recorded when the app or device is closed, but switching pages in-app will cause the data to stop recording. 
+
+/*@START_MENU_TOKEN@*/Storage/*@END_MENU_TOKEN@*/
+
+The storage menu shows all of the data that has been recorded. It shows the storage number, the time in which it was recorded, and the fps. By clicking the dropdown menu on the side, there are options to copy or share the data. There are also options on the bottom of the screen which allow you to copy/share all data. The amount of storage in the app is only limited by the devices' capacity.
+
+/*@START_MENU_TOKEN@*/Graph/*@END_MENU_TOKEN@*/
+Added in version 1.3, the graph gives real-time updates on all the sensors. Certain lines can be turned on/off, and it shows the x, y, and z gravity by default.
+
+/*@START_MENU_TOKEN@*/Settings/*@END_MENU_TOKEN@*/
+FPS:
+    This setting adjusts the FPS for the recorder and graph.
+    
+Delete All Data:
+    When clicked, there is a prompt to enter a set of random characters. If entered correctly, the option to delete all data appears. Once deleted, the data cannot be recovered.

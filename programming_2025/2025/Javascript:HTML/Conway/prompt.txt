@@ -1,0 +1,6 @@
+Make a web application that simulates a variation of Conway's game of life. Each cell should have three states: on(red), on(blue), and off. The rules for the Conway's game of life variation:
+	- Any live cell(red or blue) with fewer than two live neighbors dies.
+	- Any live cell with two or three live neighbors lives on to the next generation.
+	- Any live cell with more than three live neighbors dies.
+	- Any dead cell with exactly three live neighbors becomes a live cell with the color of the majority of the neighboring cells
+The grid should be infinitely scrollable in all directions. Utilize the Hashlife optimization to make it run fast and in real time. The web application should use HTML, Javascript, and CSS.

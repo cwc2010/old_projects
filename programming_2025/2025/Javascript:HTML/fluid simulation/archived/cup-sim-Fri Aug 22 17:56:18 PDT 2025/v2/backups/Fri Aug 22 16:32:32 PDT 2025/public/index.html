@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>FLIP Water – Step 2 (Grid & Data)</title>
+  <link rel="stylesheet" href="./index.css" />
+</head>
+<body>
+  <!-- Fullscreen canvas -->
+  <canvas id="canvas" aria-label="FLIP water simulation canvas"></canvas>
+
+  <!-- Overlay UI (moved to top-right so it doesn't block the canvas title text) -->
+  <div class="ui">
+    <div class="ui-row">
+      <button id="enableSensors" class="btn primary" type="button">Enable Sensors</button>
+      <button id="pauseBtn" class="btn" type="button" aria-pressed="false">Pause</button>
+      <button id="resetBtn" class="btn" type="button">Reset</button>
+    </div>
+    <div class="ui-row status">
+      <span id="statusText">Ready • DPR: <span id="dprText">1</span></span>
+    </div>
+  </div>
+
+  <script src="./main.js"></script>
+</body>
+</html>

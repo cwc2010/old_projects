@@ -1,0 +1,39 @@
+<!-- public/index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Multiplayer Fluid</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="/" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="gl"></canvas>
+  <div id="ui">
+    <div class="row">
+      <label>Color</label>
+      <input id="color" type="color" value="#00aaff" />
+    </div>
+    <div class="row">
+      <label>Brush</label>
+      <input id="radius" type="range" min="0.5" max="6" step="0.1" value="2.0" />
+      <span id="radiusVal">2.0</span>%
+    </div>
+    <div class="row">
+      <label>Force</label>
+      <input id="force" type="range" min="0.2" max="8" step="0.1" value="2.0" />
+      <span id="forceVal">2.0</span>x
+    </div>
+    <div class="row small">
+      Grid: <span id="gridInfo">?</span>
+    </div>
+    <div class="row small">
+      Tip: Click & drag to add dye and push fluid. Multiple users share the same fluid.
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

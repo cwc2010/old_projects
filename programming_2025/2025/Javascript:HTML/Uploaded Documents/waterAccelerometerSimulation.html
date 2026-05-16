@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Game</title>
+  <style>
+    canvas {
+      border: 1px solid #000;
+    }
+  </style>
+</head>
+<body>
+  <button onclick="startRequest()" id="startbtn">start</button>
+  <input id="input" style="font-family:monospace;width:500px;" value="not updated">
+  <canvas id="canvas"></canvas>
+  <script>let H1823652235=true;addEventListener("error",(e=>{H1823652235&&(H1823652235=confirm(e.message+"@"+e.lineno+":"+e.colno))}))</script>  
+  <script>
+    let canvas = document.getElementById("canvas")
+    let ctx = canvas.getContext("2d")
+    let canvasSize = 400
+    input.style.width = canvas.style.width = canvas.style.height = canvasSize + "px"
+    canvas.width = canvas.height = 1000
+    let keys = {} 
+    addEventListener("keydown", (e) => {
+      let key = e.key.toLowerCase()
+      if (key.slice(0,5) == "arrow") {key = key.slice(5)}
+      keys[key] = true
+    })
+    
+    addEventListener("keyup", (e) => {
+      let key = e.key.toLowerCase()
+      if (key.slice(0,5) == "arrow") {key = key.slice(5)}
+      keys[key] = false
+    })
+    //setInterval(render,1000/60)
+    requestAnimationFrame(render)
+
+
+
+
+
+
+    class Point {
+      constructor (x,y,xvel=0,yvel=0,size=50,color="#00f") {
+        this.x = x
+        this.y = y
+        this.xvel = xvel
+        this.yvel = yvel
+        this.size = size
+        this.color = color
+        this.timer = 0
+        this.ID = Math.random()
+      }
+    }
+    let wallH = 500
+    let wallV = 500
+    let points = []
+    for (let i = canvas.width/2-wallH/2; i < canvas.width/2+wallH/2; i+=15) {
+      for (let j = canvas.height/2+wallV/2; j > canvas.height/2; j -= 15) {
+        points.push(new Point(i,j,0,0,15))
+      }
+    }
+    
+    let canvasGrid = []
+    let canvasGridResolution = 1
+    for (let i = 0; i < canvas.width; i += canvasGridResolution) {
+      canvasGrid.push([])
+      for (let j = 0; j < canvas.width; j += canvasGridResolution) {
+        canvasGrid[i].push(0)
+      }
+    }
+    let startTime = Date.now()
+    let simSpeed = 1
+    let startingPoints = points.length
+    let startingTime = Date.now()
+    function render() {
+      requestAnimationFrame(render)
+      if (Date.now() - startTime < 1000/60) {
+        return
+      }
+      startTime = Date.now()
+      ctx.clearRect(0,0,canvas.width,canvas.height)
+      let keymoveIntensity = 5
+      motion.update()
+      ctx.fillStyle = "#000"
+      ctx.globalAlpha = 1
+      ctx.fillRect(canvas.width/2-wallH/2-canvas.width/100,canvas.height/2-wallV/2,canvas.width/100,canvas.height)
+      ctx.fillRect(canvas.width/2+wallH/2,canvas.height/2-wallV/2,canvas.width/100,canvas.height)
+      ctx.fillRect(0,canvas.height/2+wallV/2,canvas.width,canvas.height)
+      ctx.fillStyle = "#00f"
+      for (let point of points) {
+        ctx.fillStyle = point.color
+        ctx.globalAlpha = 0.3
+        if (point.color == "#f00") {
+          ctx.globalAlpha = 0.25*(1-point.timer/600)
+          ++point.timer
+          if (point.timer > 600) {
+            point.ID = -Math.random()
+          }
+        }
+        if (keys.shift) {
+          point.xvel += (Math.random()-0.5)*keymoveIntensity*2
+          point.yvel += (Math.random()-0.5)*keymoveIntensity*2
+        }
+        if (keys.up) {
+          point.yvel -= Math.random()*keymoveIntensity
+        }
+        if (keys.down) {
+          point.yvel += Math.random()*keymoveIntensity
+        }
+        if (keys.left) {
+          point.xvel -= Math.random()*keymoveIntensity
+        }
+        if (keys.right) {
+          point.xvel += Math.random()*keymoveIntensity
+        }
+        for (let point2 of points) {
+          if (point2.ID === point.ID) {continue}
+          if (Math.abs(point.x - point2.x) > point.size + point2.size || Math.abs(point.y - point2.y) > point.size + point2.size) continue
+          let distX = point2.x - point.x
+          let distY = point2.y - point.y
+          let dist = Math.min(1,Math.max(-1,1/Math.sqrt(distX**2+distY**2)))
+          let theta = Math.atan2(distY, distX)
+          let distance = Math.sqrt((point2.x-point.x)**2+(point2.y-point.y)**2)
+          let xchange = 3*dist*Math.cos(theta)
+          let ychange = 3*dist*Math.sin(theta)
+          
+          point. yvel -= ychange
+          point. xvel -= xchange
+          point2.yvel += ychange
+          point2.xvel += xchange
+          if (dist < point.size + point2.size) {
+            let oldxvel = point.xvel
+            let oldyvel = point.yvel
+            let cfriction = 0.001
+            point.xvel += cfriction*point2.xvel
+            point.yvel += cfriction*point2.yvel
+            point2.xvel += cfriction*oldxvel
+            point2.yvel += cfriction*oldyvel
+            point.xvel /= 1+cfriction
+            point.yvel /= 1+cfriction
+            point2.xvel /= 1+cfriction
+            point2.yvel /= 1+cfriction
+          }
+        }
+        point.yvel -= 2*0.05*simSpeed*motion.y
+        point.xvel -= 2*0.05*simSpeed*motion.x
+        let incupX = (point.x - point.size < canvas.width/2-wallH/2 || point.x > canvas.width/2+wallH/2 - point.size)
+        let aboveTop = point.y + point.size < canvas.height/2-wallV/2
+        if (point.color == "#f00") {
+          if (!aboveTop) {
+            if (
+              point.x - point.size < canvas.width/2-wallH/2 &&
+              point.x - point.size > canvas.width/2-wallH/2 - 50 &&
+              point.xvel < 0
+            ) {
+              point.x = canvas.width/2-wallH/2 + point.size
+              point.xvel = Math.abs(point.xvel)
+            }
+            if (
+              point.x + point.size < canvas.width/2-wallH/2 &&
+              point.x + point.size > canvas.width/2-wallH/2 - 50 &&
+              point.xvel > 0
+            ) {
+              point.x = canvas.width/2-wallH/2 + point.size - 50
+              point.xvel = -Math.abs(point.xvel)
+            }
+            /////////////////////////
+            if (
+              point.x > canvas.width/2+wallH/2 - point.size &&
+              point.x < canvas.width/2+wallH/2 - point.size + 50 &&
+              point.xvel < 0
+            ) {
+              point.x = canvas.width/2+wallH/2 - point.size + 50
+              point.xvel = Math.abs(point.xvel)
+            }
+            if (
+              point.x + point.size > canvas.width/2+wallH/2 &&
+              point.x + point.size < canvas.width/2+wallH/2 + 50 &&
+              point.xvel > 0
+            ) {
+              point.x = canvas.width/2+wallH/2 - point.size
+              point.xvel = -Math.abs(point.xvel)
+            }
+            
+          }
+        } else {
+          if (!aboveTop) {
+            if (point.x - point.size < canvas.width/2-wallH/2) {
+              point.x = canvas.width/2-wallH/2 + point.size
+              point.xvel = Math.abs(point.xvel)
+            }
+            
+            if (point.x > canvas.width/2+wallH/2 - point.size) {
+              point.x = canvas.width/2+wallH/2 - point.size
+              point.xvel = -Math.abs(point.xvel)
+            }
+          }
+        }
+        ctx.beginPath()
+        if (aboveTop) {
+          //point.ID = -Math.random()
+          point.color = "#f00"
+        } else if (point.y > canvas.height/2+wallV/2 - point.size) {
+          point.y = canvas.height/2+wallV/2 - point.size
+          point.yvel = -Math.abs(point.yvel)
+        }
+        //if (point.y > canvas.height) point.ID = -Math.random()
+        point.x += point.xvel
+        point.y += point.yvel
+        point.xvel /= 1.0001**(1*simSpeed)
+        point.yvel /= 1.0001**(1*simSpeed)
+        ctx.beginPath()
+        ctx.arc(point.x*canvas.width/1000, point.y*canvas.height/1000, point.size*canvas.width/1000, 0, 6.29)
+        ctx.fill()
+      }
+      points = points.filter((e)=>e.ID>0)
+      let percentage = points.filter((e)=>e.color=="#00f").length/startingPoints * 100
+      if (Math.ceil(percentage) == 100 && percentage !== 100) percentage = 99
+      input.value = Math.ceil(percentage) + "% water remaining for " + (Math.round((Date.now()-startingTime)/1000*100)/100).toFixed(2) + " seconds"
+    }
+    let motion = {x:0,y:0,avgx:[],avgy:[]}
+    let devicemotionworking = false
+    let requestInterval = setInterval(startRequest)
+    motion.update = function() {
+      if (motion.avgx.length == 0) return
+      let avgx = 0
+      let avgy = 0
+      for (let i = 0; i < motion.avgx.length; ++i) {
+        avgx += motion.avgx[i]
+        avgy += motion.avgy[i]
+      }
+      // just realized that this actually isn't the average haha 
+      //avgx /= motion.avgx.length 
+      //avgy /= motion.avgy.length 
+      motion.x = avgx
+      motion.y = avgy
+      motion.avgx = []
+      motion.avgy = []
+    }
+    function startRequest() {
+      DeviceMotionEvent.requestPermission()
+      if (devicemotionworking) {
+        clearInterval(requestInterval)
+        startbtn.remove()
+        return
+      }
+      window.addEventListener("devicemotion", (e) => {
+        let sens = 0.25
+        let gravityamp = 0.25
+        if (keys["q"]) {
+          gravityamp = 0
+        }
+        devicemotionworking = true
+        //input.value = "running"
+        //motion.ax = e.acceleration.x
+        let ay = e.acceleration.y
+        let az = e.acceleration.x
+        let gravityy = e.accelerationIncludingGravity.y - ay
+        let gravityz = e.accelerationIncludingGravity.x - az
+        //motion.gx = e.accelerationIncludingGravity.x
+        motion.avgx.push(gravityamp * gravityy + sens*ay)
+        motion.avgy.push(gravityamp * gravityz + sens*az)
+      })
+    }
+  </script>
+</body>
+</html>

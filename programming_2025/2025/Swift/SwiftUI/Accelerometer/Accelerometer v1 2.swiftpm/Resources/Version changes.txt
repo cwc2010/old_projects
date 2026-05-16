@@ -1,0 +1,4 @@
+v1.1:
+added setting to remove all data
+added settings tab
+recording the data also records the date

@@ -1,0 +1,109 @@
+<style>
+	canvas {
+		border: 1px solid #000;
+	}
+</style>
+<canvas id="canvas"></canvas>
+<script>
+let canvas = document.getElementById("canvas")
+canvas.style.width = canvas.style.height = "500px"
+canvas.width = canvas.height = 1000
+let ctx = canvas.getContext("2d")
+class Planet {
+	constructor(x,y,z,xvel,yvel,zvel) {
+		this.x = x
+		this.y = y
+		this.z = z
+		this.xvel = xvel
+		this.yvel = yvel
+		this.zvel = zvel
+	}
+}
+function getDepth(x,y) {
+	let maxdepth = -1/0
+	for (let planet of planets) {
+		let depth = planet.z+Math.sqrt(0.15-(x-planet.x)**2-(y-planet.y)**2)
+		if (depth > maxdepth) maxdepth = depth
+	}
+	if (maxdepth == -1/0) maxdepth = 0
+	return maxdepth
+}
+function combineEquations() {
+	let max = 0
+	for (let i = 0; i < arguments.length; ++i) {
+		if (arguments[i] > max && !isNaN(arguments[i])) max = arguments[i]
+	}
+	return max
+}
+//throw 2
+let planets = [
+	new Planet( 1,0,  -0.5,  0,-0.05, 0.04),
+	new Planet(-1,0,  1,  0, 0.05, 0.01),
+	new Planet( 0,0,1.5,  0,    0,-0.05),
+]
+function minmax(val,min,max) {
+	return Math.min(Math.max(val,min),max)
+}
+let size = 4
+let time = 0
+
+function render() {
+	for (let planet1 of planets) {
+		for (let planet2 of planets) {
+			if (planet1 == planet2) continue
+			let distanceX = planet1.x - planet2.x
+			let distanceY = planet1.y - planet2.y
+			let distanceZ = planet1.z - planet2.z
+			let distance = Math.sqrt(distanceX**2+distanceY**2+distanceZ**2)
+			planet1.xvel -= minmax(1/distanceX,-0.5,0.5)/1000
+			planet1.yvel -= minmax(1/distanceY,-0.5,0.5)/1000
+			planet1.zvel -= minmax(1/distanceZ,-0.5,0.5)/1000
+			
+			planet2.xvel += minmax(1/distanceX,-0.5,0.5)/1000
+			planet2.yvel += minmax(1/distanceY,-0.5,0.5)/1000
+			planet2.zvel += minmax(1/distanceZ,-0.5,0.5)/1000
+		}
+		planet1.xvel /= 1.001
+		planet1.yvel /= 1.001
+		planet1.zvel /= 1.001
+		
+		planet1.x += planet1.xvel
+		planet1.y += planet1.yvel
+		planet1.z += planet1.zvel
+	}
+	ctx.globalAlpha = 0.5
+	ctx.fillStyle="#000"
+	ctx.clearRect(0,0,canvas.width,canvas.height)
+	let a = -size
+	let b = -size
+	let points = []
+	let fndepthsize = 0.1
+	let depthsize = 3
+	let loopBreaker = 0
+
+	while (b < size) {
+		if (loopBreaker > 100000) {
+			break
+		}
+		++loopBreaker
+		if (a < size) {
+			let depth = getDepth(a+depthsize/2,b)
+			a += depthsize-fndepthsize*(isNaN(depth)?0:depth)
+			if ((a+size)*1000/size/2 > 0) {
+				ctx.beginPath()
+				ctx.arc((a+size)*1000/size/2,(b+size)*1000/size/2,10/size,0,6.29)
+				ctx.fill()
+			}
+		} else {
+			a = -size-Math.random()*size*2
+			b += 0.003*Math.random()
+		}
+	}
+	ctx.fillStyle = "#f00"
+	ctx.beginPath()
+	ctx.arc((depthsize/2+size)*1000/size/2,canvas.height/8,25/size,0,6.29)
+	ctx.arc((-depthsize/2+size)*1000/size/2,canvas.height/8,25/size,0,6.29)
+	ctx.fill()
+}//////////
+setInterval(render,1000/60)
+</script>
